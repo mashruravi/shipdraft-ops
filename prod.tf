@@ -41,6 +41,11 @@ resource "aws_security_group" "prod_web" {
     protocol  = "-1"
     cidr_blocks = ["0.0.0.0/0"]
   }
+
+  tags = {
+    "Terraform" = "true"
+  }
+
 }
 
 resource "aws_instance" "prod_server" {
