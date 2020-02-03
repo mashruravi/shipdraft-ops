@@ -21,5 +21,15 @@
         "role": "buildSystem"
       }
     }
+  ],
+  "provisioners": [
+    {
+      "type": "shell",
+      "script": "./installPackages.sh"
+    },
+    {
+      "type": "ansible-local",
+      "playbook_file": "./playbook.yml"
+    }
   ]
 }

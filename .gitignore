@@ -31,3 +31,7 @@ override.tf.json
 
 # Credentials files
 credentials
+*.pem
+
+# Other files
+packer/hosts
