@@ -1,0 +1,25 @@
+{
+  "variables": {
+    "aws_access_key": "{{env `AWS_ACCESS_KEY_ID`}}",
+    "aws_secret_key": "{{env `AWS_SECRET_ACCESS_KEY`}}"
+  },
+  "builders": [
+    {
+      "type": "amazon-ebs",
+      "region": "us-east-2",
+      "access_key": "{{user `aws_access_key`}}",
+      "secret_key": "{{user `aws_secret_key`}}",
+      "source_ami": "ami-0d5d9d301c853a04a",
+      "instance_type": "t2.micro",
+      "ssh_username": "ubuntu",
+      "ami_name": "ShipdraftServer-{{isotime | clean_resource_name}}",
+      "ami_description": "Server AMI that runs Django server for Shipdraft",
+      "tags": {
+        "role": "ShipdraftServer"
+      },
+      "run_tags": {
+        "role": "buildSystem"
+      }
+    }
+  ]
+}
