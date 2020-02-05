@@ -1,0 +1,35 @@
+---
+
+# The wsgi version to install
+wsgi_version: 4.6.5
+
+# Directory where to download wsgi
+wsgi_download_dir: /tmp
+
+# Where to download the wsgi archive
+wsgi_package_path: "{{ wsgi_download_dir }}/mod_wsgi-{{ wsgi_version }}.tar.gz"
+
+# Where to extract the wsgi archive
+wsgi_extract_path: "{{ wsgi_download_dir }}/mod_wsgi-{{ wsgi_version }}"
+
+# Force wsgi re-install
+wsgi_force_install: no
+
+
+# Code repository url
+github_repo_url: "https://github.com/mashruravi/shipdraft.git"
+
+# Code repo destination
+code_dest: "/var/www/shipdraft"
+
+# Path to virtual environment
+virtualenv_path: "{{ code_dest }}/virtualenv"
+
+# Production settings file location
+settings_prod_location: "{{ code_dest }}/shipdraft/settings_prod.py"
+
+# Force overwrite of app settings
+django_force_settings_overwrite: no
+
+# Server host name (required for WSGI configuration)
+host_name: "ec2-18-216-135-63.us-east-2.compute.amazonaws.com"

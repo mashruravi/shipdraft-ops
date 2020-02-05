@@ -1,0 +1,133 @@
+---
+- hosts: all
+  become: yes
+  tasks:
+    - name: Include global variables
+      include_vars: 'variables.yml'
+
+    - name: Install required apt packages
+      apt:
+        update_cache: yes
+        pkg:
+          - libpq-dev
+          - build-essential
+          - libcurl4-gnutls-dev
+          - libxml2-dev
+          - libssl-dev
+          - apache2
+          - apache2-dev
+          - systemd
+          - python3
+          - python3-dev
+          - python3-pip
+
+    - name: Get the path to apache modules
+      shell: 'apxs -q LIBEXECDIR'
+      changed_when: false
+      register: _apache_libexecdir
+
+    - name: Create variable with path to apache modules
+      set_fact:
+        apache_libexecdir: '{{ _apache_libexecdir.stdout }}'
+
+    - name: Check if mod_wsgi module already installed
+      stat:
+        path: '{{ apache_libexecdir }}/mod_wsgi.so'
+      register: wsgi_exists
+
+    - include: install_wsgi.yml
+      when: wsgi_force_install|bool or wsgi_exists.stat.exists == False
+
+    - name: Add wsgi module to apache configuration
+      blockinfile:
+        path: /etc/apache2/apache2.conf
+        marker: "# {mark} ANSIBLE MANAGED LOAD WSGI MODULE"
+        block: |
+          # Load wsgi module
+          LoadModule wsgi_module /usr/lib/apache2/modules/mod_wsgi.so
+      notify: restart apache2
+    
+    - name: Enable wsgi module
+      apache2_module:
+        state: present
+        name: wsgi
+      notify: restart apache2
+
+    - name: Install virtual env
+      pip:
+        name: virtualenv
+
+    - name: Ensure apache2 is running
+      service:
+        name: apache2
+        state: started
+
+    - name: Clone repository
+      git:
+        repo: "{{ github_repo_url }}"
+        dest: "{{ code_dest }}"
+
+    - name: Check if virtual environment exists
+      stat:
+        path: "{{ virtualenv_path }}"
+      register: virtualenv_exists
+
+    - name: Create virtual environment
+      shell: virtualenv -p python3 {{ virtualenv_path|quote }}
+      when: virtualenv_exists.stat.exists == False
+
+    - name: Install app requirements
+      pip:
+        requirements: "{{ code_dest }}/requirements.txt"
+        virtualenv: "{{ virtualenv_path }}"
+
+    - name: Check if production settings exist
+      stat:
+        path: "{{ settings_prod_location }}"
+      register: settings_prod
+
+    - name: Update app settings
+      copy:
+        src: settings_prod.py
+        dest: "{{ settings_prod_location }}"
+      when: django_force_settings_overwrite|bool or settings_prod.stat.exists == False
+
+    - name: Update apache configuration with app details
+      blockinfile:
+        path: /etc/apache2/apache2.conf
+        marker: "# {mark} ANSIBLE MANAGED APP CONFIGURATION"
+        block: |
+          <Directory {{ code_dest }}/shipdraft>
+          <Files wsgi.py>
+            Require all granted
+          </Files>
+          </Directory>
+          WSGIDaemonProcess {{ host_name }} python-home={{ virtualenv_path }} python-path={{ code_dest }}
+          WSGIProcessGroup {{ host_name }}
+          WSGIScriptAlias / {{ code_dest }}/shipdraft/wsgi.py
+      notify: restart apache2
+
+    - name: Create Django app migrations
+      shell: "{{ virtualenv_path }}/bin/python3 manage.py makemigrations"
+      args:
+        chdir: "{{ code_dest }}"
+
+    - name: Run Django app migrations
+      shell: "{{ virtualenv_path }}/bin/python3 manage.py migrate"
+      args:
+        chdir: "{{ code_dest }}"
+
+    - name: Add configuration to serve static files
+      blockinfile:
+        path: /etc/apache2/apache2.conf
+        marker: "# {mark} ANSIBLE MANAGED STATIC FILE CONFIGURATION"
+        block: |
+          Alias /static {{ code_dest }}/static
+          <Directory {{ code_dest }}/static>
+            Require all granted
+          </Directory>
+      notify: restart apache2
+
+  handlers:
+    - name: restart apache2
+      service: name=apache2 state=restarted

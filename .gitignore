@@ -35,3 +35,4 @@ credentials
 
 # Other files
 packer/hosts
+settings_prod.py

@@ -10,6 +10,14 @@ variable "instance_type" {
   type = string
 }
 
+variable "database_user" {
+  type = string
+}
+
+variable "database_password" {
+  type = string
+}
+
 provider "aws" {
   profile = "default"
   region  = var.region
@@ -40,6 +48,12 @@ resource "aws_security_group" "prod_web" {
     protocol    = "tcp"
     cidr_blocks = ["0.0.0.0/0"] 
   }
+  ingress {
+    from_port   = 3306
+    to_port     = 3306
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
 
   egress {
     from_port = 0
@@ -67,3 +81,25 @@ resource "aws_instance" "prod_server" {
   }
 }
 
+resource "aws_db_instance" "prod_db" {
+  identifier          = "shipdraft-prod-db"
+  name                = "shipdraft"
+  allocated_storage   = 10
+  instance_class      = "db.t2.micro"
+  storage_type        = "gp2"
+  engine              = "postgres"
+  engine_version      = "10.9"
+  port                = "3306"
+  username            = var.database_user
+  password            = var.database_password
+  skip_final_snapshot = true
+  publicly_accessible = true
+
+  vpc_security_group_ids = [
+    aws_security_group.prod_web.id
+  ]
+  
+  tags = {
+    "Terraform" = "true"
+  }
+}
